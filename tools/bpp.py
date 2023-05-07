@@ -34,9 +34,10 @@ class PackageBuilder:
         # print(self.pack_desc)
         self._download_archive()
         self._extract_archive()
+        self._build_package()
 
     def _download_archive(self):
-        print("download package ...")
+        # print("download package ...")
         url = self.pack_desc["archive"]["remote"]
         filename = self.pack_desc["archive"]["local"]
         self.archive = os.path.join(self.download_dir, filename)
@@ -49,13 +50,29 @@ class PackageBuilder:
     def _extract_archive(self):
         filename = self.pack_desc["archive"]["local"]
         (name, ext) = _split_filename(filename)
-        self.build_src_dir = os.path.join(self.prefix_root, "usr", "src", name)
-        print("extract %s to %s" % (self.archive, self.build_src_dir))
-        if ext in  [".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz"]:
-            shutil.rmtree(self.build_src_dir, ignore_errors=True)
-            src_parent_dir = os.path.dirname(self.build_src_dir)
+        self.build_dir = os.path.join(self.prefix_root, "usr", "src", name)
+        print("extract %s to %s" % (self.archive, self.build_dir))
+        if ext in [".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz"]:
+            shutil.rmtree(self.build_dir, ignore_errors=True)
+            src_parent_dir = os.path.dirname(self.build_dir)
             with tarfile.open(self.archive, "r") as tar:
                 tar.extractall(src_parent_dir)
+
+    def _build_package(self):
+        build_type = self.pack_desc["build"]["type"]
+        if build_type == "cmake":
+            self._build_for_cmake()
+
+    def _build_for_cmake(self):
+        cmake_dir = os.path.join(self.build_dir, "build-cmake-bpp")
+        if not os.path.isdir(cmake_dir):
+            os.makedirs(cmake_dir)
+        cmd = \
+            "cd %s && PREFIX_ROOT='%s' && cmake -DCMAKE_INSTALL_PREFIX='%s' .. && make && make install" \
+            % (cmake_dir, self.prefix_root, self.prefix_root)
+        print("build command: %s" % cmd)
+        print("--------------------")
+        os.system(cmd)
 
 def dump_usage():
     print('python bpp.py <command>')
